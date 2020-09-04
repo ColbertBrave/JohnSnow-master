@@ -3,8 +3,8 @@
 
 #include <pthread.h>
 #include <semaphore.h>
-//封装信号量和锁
-class sem //
+
+class sem
 {
 public:
     sem()
@@ -31,7 +31,7 @@ private:
 class locker
 {
 private:
-    pthread_mutex_t m_lock;     // 定义互斥锁
+    pthread_mutex_t m_lock;     // 创建互斥锁，互斥锁是一个联合体
 
 public:
     locker()
@@ -40,11 +40,11 @@ public:
     }
     ~locker()
     {
-        pthread_mutex_destroy(&m_lock);     // 销毁互斥锁
+        pthread_mutex_destroy(&m_lock);     // 释放互斥锁
     }
     bool dolock()
     { 
-        return (pthread_mutex_lock(&m_lock)==0);    // 锁定互斥锁，上锁成功则返回 0
+        return (pthread_mutex_lock(&m_lock) == 0);    // 锁定互斥锁，阻塞调用
     }
     bool unlock()
     {

@@ -161,7 +161,7 @@ int main(int argc, char *agrv[])
         port = atoi(agrv[1]);   // 将字符串转为整型数字
     }
 
-    pool<http_conn> m_threadpool(10, 10000);             // 创建线程池对象
+    pool<http_conn> m_threadpool(10, 10000);             // 创建线程池对象: 线程数量10，请求数量10000
     vector<http_conn *> http_user_list(MAX_FD, nullptr); // 连接数量取决于描述符的数量,这个太奇怪了，析构什么的
     int user_count = 0;                                  // 用户数为0
 
@@ -339,7 +339,7 @@ int main(int argc, char *agrv[])
                         m_timer_list.del_timer(timer);
                 }
             }
-            
+
             if (timeout)
             {
                 timer_handler();

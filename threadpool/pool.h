@@ -2,7 +2,6 @@
 #define POOL_H
 
 #include "../lock/lock.h"
-
 #include <iostream>
 #include <list>
 #include <pthread.h>
@@ -44,7 +43,10 @@ class pool              // 线程池对象
 {
 private:
     list<T *> request_list;        // request list
-    
+    /*
+        在linux的实现中pthread_t被定义为 "unsigned long int"
+        在win中是一个结构体
+    */
     vector<pthread_t> thread_list; // thread list
     locker m_lock;                 // lock for working thread
     sem m_sem;                     // sem for main thread and working thread
@@ -67,18 +69,23 @@ pool<T>::pool(int thread_num, int max_request): m_thread_num(thread_num), m_max_
     线程构造函数: 根据线程数量和请求数量创建线程池
 */
 {
-    thread_list = vector<pthread_t>(thread_num, 0);     // 创建线程ID列表
+    thread_list = vector<pthread_t>(thread_num, 0);     // 创建线程ID列表，初始化为0
     //cout << "create thread_list" << endl;
     //start working threads
     for (int i = 0; i < m_thread_num; ++i)
     {
         //cout << "creat thread:" << i <<"is:"<<thread_list[i]<< endl;
+        /*
+            创建POSIX线程，&thread_list[i]为创建的线程标识符指针，线程属性对象默认为NULL，线程运行函数起始地址为worker，运行函数的参数为this
+        */
         if (pthread_create(&thread_list[i], NULL, worker, this) != 0)
+        // 当线程创建不成功时报错
         {
             cout << "Some thing goes wrong when creating thread!" << endl;
         }
 
         if (pthread_detach(thread_list[i])!= 0)
+        // pthread_detach()即主线程与子线程分离，子线程结束后，资源自动回收
         {
             cout << "Thread detach failed!" << endl;
         }
@@ -94,8 +101,9 @@ bool pool<T>::append(T *requset)
 {
 
     //cout << "want to get lock" << endl;
-    m_lock.dolock();
+    m_lock.dolock();    // 加锁
     if (request_list.size() > m_max_request)
+    // 请求数量超过最大数量限制
     {
         m_lock.unlock();
         //cout << "too many request_list" << endl;
@@ -122,7 +130,7 @@ void pool<T>::run()
     while (1)
     {
         m_sem.wait();    // 信号量
-        m_lock.dolock(); // 加锁,竞争条件
+        m_lock.dolock(); // 加锁，竞争条件
         //cout << "request num :  " << request_list.size() << endl;
         if (request_list.size() <= 0)
         {

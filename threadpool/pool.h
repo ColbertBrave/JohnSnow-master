@@ -60,7 +60,7 @@ private:
 public: 
     pool(int thread_num = 10, int max_request = 100);
     ~pool();
-    bool append(T *requset);
+    bool append(T *requset);        // 添加请求
 };
 
 template <typename T>
@@ -140,13 +140,13 @@ void pool<T>::run()
         {
             T* request = request_list.front();
             request_list.pop_front(); // 请求队列出队
-            //cout << "some thread get the request" << endl;
+            // cout << "some thread get the request" << endl;
             m_lock.unlock();
             if (!request)
             {
                 continue;
             }
-            request->process();
+            request->process();    // ???
             // delete request;// 非常奇怪
             // request = nullptr;
         }

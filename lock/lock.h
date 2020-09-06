@@ -9,7 +9,7 @@ class sem
 public:
     sem()
     {
-        sem_init(&m_sem, 0, 0);
+        sem_init(&m_sem, 0, 0);  // 初始化一个信号量
     }
     ~sem()
     {
@@ -17,15 +17,17 @@ public:
     }
     bool wait() //v操作，-1
     {
-        return (sem_wait(&m_sem) == 0);
+        // sem_wait阻塞当前线程直到信号量sem的值大于0，解除阻塞后将sem的值减一，表明公共资源经使用后减少
+        return (sem_wait(&m_sem) == 0);  
     }
     bool post() //p操作，+1
     {
+        // 释放信号量，让信号量的值加1
         return (sem_post(&m_sem) == 0);
     }
 
 private:
-    sem_t m_sem;
+    sem_t m_sem;    // 信号量的数据类型为sem_t，它本质上是一个长整型的数
 };
 
 class locker

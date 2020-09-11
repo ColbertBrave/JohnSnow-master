@@ -66,7 +66,7 @@ public:
 template <typename T>
 pool<T>::pool(int thread_num, int max_request): m_thread_num(thread_num), m_max_request(max_request)
 /*
-    线程构造函数: 根据线程数量和请求数量创建线程池
+    线程池构造函数: 根据线程数量和请求数量创建线程池
 */
 {
     thread_list = vector<pthread_t>(thread_num, 0);     // 创建线程ID列表，初始化为0

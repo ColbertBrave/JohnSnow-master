@@ -74,7 +74,7 @@ void addfd_lt(int epollfd, int socketfd)
         fd：            需要监听的fd（文件描述符）
         epoll_event：   是告诉内核需要监听什么事
     */
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, socketfd, &event);
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, socketfd, &event);    // 添加socketfd进内核事件表中，需要监听的事件为event
 }
 
 void cb_func(client_data *c_data)
@@ -170,6 +170,7 @@ int main(int argc, char *agrv[])
     address.sin_addr.s_addr = htonl(INADDR_ANY);         // 将主机的无符号长整形数转换成网络字节顺序
     address.sin_family = AF_INET;                        // IPv4地址
     address.sin_port = htons(port);                      // 将一个无符号短整型数值转换为网络字节序
+    
     int flag = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
     bind(listenfd, (struct sockaddr *)&address, sizeof(address));
@@ -177,7 +178,7 @@ int main(int argc, char *agrv[])
     listen(listenfd, 5);
     // cout << "listen, listenfd : " << listenfd << endl;
 
-    // 创建内核事件表
+    // 创建内核事件表，用于注册所感兴趣的事件和回传所发生待处理的事件
     epoll_event event_list[MAX_EVENT_NUMBER];
     // 创建一个文件描述符，指定内核中的事件表, 成功返回一个文件描述符，失败返回 -1 并设置errno
     int epollfd = epoll_create(5);      
@@ -185,15 +186,15 @@ int main(int argc, char *agrv[])
     http_conn::m_epollfd = epollfd;                      // 更新http_conn类中的epoll描述符
 
     // 创建管道用于定时器和其他信号消息的通知
-    socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);         //域协议
-    setnonblocking(pipefd[1]);                           //写入是非阻塞的？？？？为什么
-    addfd(epollfd, pipefd[0]);                           //监听前一个管道描述符
+    socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);         // 域协议
+    setnonblocking(pipefd[1]);                           // 写入是非阻塞的？？？？为什么
+    addfd(epollfd, pipefd[0]);                           // 监听前一个管道描述符
 
-    addsig(SIGALRM, sig_handler, false);                 //监听定时信号
-    addsig(SIGTERM, sig_handler, false);                 //监听定时信号
+    addsig(SIGALRM, sig_handler, false);                 // SIGALARM由alarm或setitimer设置的实时闹钟超时引起
+    addsig(SIGTERM, sig_handler, false);                 // SIGTERM终止进程信号
 
-    addsig(SIGINT, sig_handler, false);                      //监听定时信号
-    vector<client_data *> client_data_list(MAX_FD, nullptr); //创建用户信息列表，其中包含定时器信息
+    addsig(SIGINT, sig_handler, false);                      // SIGINT键盘输入以中断进程
+    vector<client_data *> client_data_list(MAX_FD, nullptr); // 创建用户信息列表，其中包含定时器信息
 
     alarm(MAX_WAIT_TIME); //开始定时
     bool timeout = false;
@@ -202,34 +203,34 @@ int main(int argc, char *agrv[])
     {
         // epoll_wait函数如果检测到事件就绪，就将所有就绪的事件从内核事件表epollfd中复制到event_list指定的数组中
         int number = epoll_wait(epollfd, event_list, MAX_EVENT_NUMBER, -1);
+        // 读取并处理就绪事件列表event_list
         for (int i = 0; i < number; ++i)
         {
-            int socketfd = event_list[i].data.fd;
-            if (socketfd == listenfd)
+            int socketfd = event_list[i].data.fd;   // 读取就绪的socket fd
+            if (socketfd == listenfd) // 如果监听完毕后
             {
                 // cout << "new client" << endl;
                 // 新的连接
                 struct sockaddr_in client_addr;
                 socklen_t client_addr_length = sizeof(client_addr);
-                int connfd = accept(listenfd, (struct sockaddr *)(&client_addr), &client_addr_length);
+                int connfd = accept(listenfd, (struct sockaddr *)(&client_addr), &client_addr_length); // 接受请求
                 if (connfd < 0)
                 {
-                    //printf("%s\n", strerror(errno));
+                    printf("%s\n", strerror(errno));
                     continue; // 跳过这一轮
                 }
 
                 if (http_conn::m_user_count >= MAX_FD)
                     continue;
 
-                if (http_user_list[connfd] == nullptr)
+                if (http_user_list[connfd] == nullptr)        // 如果是新的客户端连接请求
                 {
-                    cout << "new http  " << connfd << endl;
-                    http_user_list[connfd] = new http_conn();
+                    cout << "new http  " << connfd << endl;   // 输出新连接的文件描述符
+                    http_user_list[connfd] = new http_conn(); // 创建新的连接对象
                 }
-                http_user_list[connfd]->init(connfd, client_addr);
+                http_user_list[connfd]->init(connfd, client_addr); // 初始化连接
 
-                // 开始初始化client_data
-                // 创建定时器
+                // 初始化client_data
                 if (client_data_list[connfd] == nullptr)
                 {
                     cout << "new timer  " << connfd << endl;
@@ -238,6 +239,7 @@ int main(int argc, char *agrv[])
                 client_data_list[connfd]->address = client_addr;
                 client_data_list[connfd]->sockfd = connfd;
 
+                // 创建定时器
                 t_client *timer = new t_client;
                 timer->user_data = client_data_list[connfd];
                 timer->cb_func = cb_func;
@@ -247,6 +249,13 @@ int main(int argc, char *agrv[])
                 m_timer_list.add_timer(timer);
             }
             else if (event_list[i].events & (EPOLLHUP | EPOLLRDHUP | EPOLLERR))
+            /*
+                EPOLLHUP：      表示对应的文件描述符被挂断；
+                EPOLLERR：      表示对应的文件描述符发生错误；
+                EPOLLRDHUP：    表示对端断开连接;
+                出现上述几种情况时的处理措施：关闭连接，删除定时器
+            */
+
             {
                 //printf("%s\n", strerror(errno));
                 http_user_list[socketfd]->close_conn("error!");
@@ -257,6 +266,7 @@ int main(int argc, char *agrv[])
             }
             else if ((socketfd == pipefd[0]) && (event_list[i].events & EPOLLIN)) 
             // 管道前面的描述符可写的话
+            // 文件描述符可读时：接收数据
             {
                 int sig;
                 char signals[1024];

@@ -7,7 +7,6 @@
 #include "../lock/lock.h"
 
 using namespace std;
-
 class redis_clt
 {
 private:

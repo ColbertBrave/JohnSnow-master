@@ -36,7 +36,6 @@ using namespace std;
                 largestPoolSize         线程池曾经创建过的最大线程数量。通过这个数据可以知道线程池是否满过。如等于线程池的最大大小，则表示线程池曾经满了
                 getPoolSize             线程池的线程数量
                 getActiveCount          获取活动的线程数
-
 */
 template <typename T>
 class pool              // 线程池对象
@@ -77,6 +76,7 @@ pool<T>::pool(int thread_num, int max_request): m_thread_num(thread_num), m_max_
         //cout << "creat thread:" << i <<"is:"<<thread_list[i]<< endl;
         /*
             创建POSIX线程，&thread_list[i]为创建的线程标识符指针，线程属性对象默认为NULL，线程运行函数起始地址为worker，运行函数的参数为this
+            在这里，创建一个线程，其ID放在thread_list中，线程运行函数地址为worker
         */
         if (pthread_create(&thread_list[i], NULL, worker, this) != 0)
         // 当线程创建不成功时报错
@@ -96,25 +96,7 @@ pool<T>::pool(int thread_num, int max_request): m_thread_num(thread_num), m_max_
 template <typename T>
 pool<T>::~pool() {}
 
-template <typename T>
-bool pool<T>::append(T *requset)
-{
 
-    //cout << "want to get lock" << endl;
-    m_lock.dolock();    // 加锁
-    if (request_list.size() > m_max_request)
-    // 请求数量超过最大数量限制
-    {
-        m_lock.unlock();
-        //cout << "too many request_list" << endl;
-        return false;
-    }
-    request_list.push_back(requset);
-    m_lock.unlock();
-    m_sem.post();
-    //cout << "http request appended" << endl;
-    return true;
-}
 
 template <typename T>
 void* pool<T>::worker(void *arg)
@@ -138,7 +120,7 @@ void pool<T>::run()
         }
         else
         {
-            T* request = request_list.front();
+            T* request = request_list.front();      // 这里取出的请求是http连接类
             request_list.pop_front(); // 请求队列出队
             // cout << "some thread get the request" << endl;
             m_lock.unlock();
@@ -146,10 +128,30 @@ void pool<T>::run()
             {
                 continue;
             }
-            request->process();    // ???
-            // delete request;// 非常奇怪
+            request->process();    // 处理http连接: 解析报文，处理相应的要求
+            // delete request;
             // request = nullptr;
         }
     }
+}
+
+template <typename T>
+bool pool<T>::append(T *requset)
+{
+
+    //cout << "want to get lock" << endl;
+    m_lock.dolock();    // 加锁
+    if (request_list.size() > m_max_request)
+    // 请求数量超过最大数量限制
+    {
+        m_lock.unlock();
+        //cout << "too many request_list" << endl;
+        return false;
+    }
+    request_list.push_back(requset);
+    m_lock.unlock();
+    m_sem.post();
+    //cout << "http request appended" << endl;
+    return true;
 }
 #endif

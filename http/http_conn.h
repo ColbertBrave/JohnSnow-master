@@ -60,18 +60,20 @@ public:
     bool write();
 
 public:
+    // 所有socket上的事件都注册到同一个epoll内核事件表中
+    // http是构建在TCP连接之上的，将所有的socket都由epoll进行管理
     static int m_epollfd;    // 当前http连接的epoll描述符,这个是静态的
-    static int m_user_count;
+    static int m_user_count; // 用户数量
 
 private:
-    HTTP_CODE process_read();          // 从读缓冲区读取出来数据进行解析
-    bool process_write(HTTP_CODE ret); // 写入响应到写缓冲区中
+    HTTP_CODE process_read();           // 从读缓冲区读取出来数据进行解析
+    bool process_write(HTTP_CODE ret);  // 写入响应到写缓冲区中
 
     void parser_header(const string &text, map<string, string> &m_map);      //解析请求的内容
     void parser_requestline(const string &text, map<string, string> &m_map); //解析请求的第一行
     void parser_postinfo(const string &text, map<string, string> &m_map);    //解析post请求正文
 
-    bool do_request(); // 确定到底请求的是哪一个页面
+    bool do_request();                  // 确定到底请求的是哪一个页面
 
     void unmap();
     /*
@@ -83,9 +85,7 @@ private:
 
     /*
 private:
-
     HTTP_CODE do_request();//生成响应到？？？
-
     //do_request 调用的生成响应的函数
     bool add_responce();
     bool add_content();
@@ -98,22 +98,20 @@ private:
 */
 private:
     locker m_redis_lock;
-    int m_socket; // 当前属于这个http连接的套接字
-    sockaddr_in m_addr;
-
+    int m_socket;                       // 当前属于这个http连接的套接字
+    sockaddr_in m_addr;                 // 对方的socket地址
     struct stat m_file_stat;
     struct iovec m_iovec[2];
     int m_iovec_length;
     string filename;
     string postmsg;
     char *file_addr;
-    char post_temp[];
-    char read_buff[BUFF_READ_SIZE];   //每个http连接都有一个读缓冲区和写缓冲区
-    char write_buff[BUFF_WRITE_SIZE]; //每个http连接都有一个读缓冲区和写缓冲区
+    char read_buff[BUFF_READ_SIZE];     // 每个http连接都有一个读缓冲区和写缓冲区
+    char write_buff[BUFF_WRITE_SIZE]; 
     int read_for_now = 0;
     int write_for_now = 0;
-
-    map<string, string> m_map; //http连接的各项属性
+    map<string, string> m_map;          // http连接的各项属性
+    char post_temp[];                   // 要放在末尾，否则编译报错
 };
 
 #endif

@@ -65,7 +65,7 @@ void http_conn::close_conn(string msg)
 
 void http_conn::process() //对请求进行处理
 {
-    //首先进行报文的解析
+    // 首先进行报文的解析
     HTTP_CODE ret = process_read();
     if (ret == NO_REQUEST)
     {
@@ -132,7 +132,6 @@ http_conn::HTTP_CODE http_conn::process_read()
     解析请求报文
 */
 {
-
     string m_head = "";
     string m_left = read_buff; //把读入缓冲区的数据转化为string
     //cout << read_buff << endl;
@@ -292,8 +291,6 @@ bool http_conn::process_write(HTTP_CODE ret)
     }
     else
     {
-
-        
         if (postmsg != "")
         {
             if(postmsg.length() < 20)

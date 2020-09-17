@@ -45,7 +45,7 @@ public:
         pthread_mutex_destroy(&m_lock);     // 释放互斥锁
     }
     bool dolock()
-    { 
+    {
         return (pthread_mutex_lock(&m_lock) == 0);    // 锁定互斥锁，阻塞调用
     }
     bool unlock()

@@ -4,7 +4,7 @@
 #include <time.h>
 
 class t_client;
-class client_data
+class client_data       // 定义为一个结构体也许会更好
 {
 public:
     sockaddr_in address;
@@ -18,8 +18,8 @@ public:
     t_client() : pre(nullptr), next(nullptr){};
 
 public:
-    time_t livetime;
-    void (*cb_func)(client_data *);
+    time_t livetime;                // t_client的存活时刻，超出这个时刻，被清理
+    void (*cb_func)(client_data *); // 函数指针，其形参为client_data *
     client_data *user_data;
     t_client *pre;
     t_client *next;
@@ -41,11 +41,11 @@ public:
     t_client *remove_from_list(t_client *timer);
 
 public:
-    t_client *head;
+    t_client *head; 
     t_client *tail;
 };
 
-t_client_list::~t_client_list()
+t_client_list::~t_client_list() // 清空定时器链表
 {
     t_client *temp = head;
     while (temp)
@@ -56,11 +56,11 @@ t_client_list::~t_client_list()
     }
 }
 
-void t_client_list::tick() //对于列表中的时间事件进行遍历，清空超时的
+void t_client_list::tick()      // 对于列表中的时间事件进行遍历，清空超时的
 {
     if (!head)
-        return;              //当前列表为空
-    time_t cur = time(NULL); //当前时间
+        return;                 // 当前列表为空
+    time_t cur = time(NULL);    // 获取当前的系统时间
     t_client *temp = head;
     while (temp)
     {
@@ -70,8 +70,8 @@ void t_client_list::tick() //对于列表中的时间事件进行遍历，清空
         }
         else
         {
-            //如果时间到了
-            temp->cb_func(temp->user_data); //关闭连接
+            // 如果时间到了
+            temp->cb_func(temp->user_data); //关闭连接？？
         }
         head = temp->next;
         if (head)
@@ -81,22 +81,26 @@ void t_client_list::tick() //对于列表中的时间事件进行遍历，清空
     }
 }
 
-void t_client_list::add_timer(t_client *timer) //对于列表中的时间事件进行添加,添加的位置为
+void t_client_list::add_timer(t_client *timer) // 对于列表中的时间事件进行添加,添加的位置为
 {
     if (!timer)
     {
         cout << "not a timer" << endl;
         return;
     }
+
     if (!head)
+    // 若定时器链表此时为空，则建立新的定时器链表
     {
         head = timer;
         tail = timer;
         return;
     }
-    if (timer->livetime < head->livetime) //如果当前定时器的时间小于头部的定时器时间（更早触发）
+
+    if (timer->livetime < head->livetime) 
+    // 如果当前定时器的时间小于头部的定时器时间（更早触发）
     {
-        //那就把它放到前面，最早清理
+        // 那就把它放到前面，最早清理
         timer->next = head;
         head->pre = timer;
         head = timer;
@@ -104,13 +108,13 @@ void t_client_list::add_timer(t_client *timer) //对于列表中的时间事件�
     }
     else
     {
-        //放到头部后面的合适的位置
+        // 放到头部后面的合适的位置
         t_client *temp = head;
         while (temp)
         {
             if (temp->livetime > timer->livetime)
             {
-                //如果找到了位置，则进行插入
+                //  如果找到了位置，则进行插入
                 t_client *temppre = timer->pre;
                 timer->pre = temp->pre;
                 timer->next = temp;
@@ -120,14 +124,16 @@ void t_client_list::add_timer(t_client *timer) //对于列表中的时间事件�
             }
             temp = temp->next;
         }
-        //插入到尾部后面
+        // 插入到尾部后面
         tail->next = timer;
         timer->pre = tail;
         tail = timer;
         return;
     }
-}
+}  
+
 t_client *t_client_list::remove_from_list(t_client *timer)
+// 移除定时器，同链表的操作
 {
     if (!timer)
         return timer;
@@ -154,7 +160,9 @@ t_client *t_client_list::remove_from_list(t_client *timer)
     }
     return timer;
 }
-void t_client_list::del_timer(t_client *timer) //对于列表中的时间事件删除,参数中的timer对应的描述符已经关闭了
+
+void t_client_list::del_timer(t_client *timer) 
+// 对于列表中的时间事件删除, 参数中的timer对应的描述符已经关闭了
 {
     if (!timer)
         return;
@@ -162,7 +170,8 @@ void t_client_list::del_timer(t_client *timer) //对于列表中的时间事件�
     delete timer;
 }
 
-void t_client_list::adjust_timer(t_client *timer) //对于列表中的时间事件进行按照时间顺序的调整再重新插入
+void t_client_list::adjust_timer(t_client *timer) 
+// 对于列表中的时间事件进行按照时间顺序的调整再重新插入
 {
     if (timer)
     {

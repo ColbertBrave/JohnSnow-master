@@ -149,7 +149,13 @@ void timer_handler()
 */
 
 int main(int argc, char *agrv[])
+/*
+    argc            是命令行总的参数个数
+    char *argv[]    是一个字符数组, 其大小是int argc, 主要用于命令行参数
+                    第0个参数是程序的全名，以后的参数命令行后面跟的用户输入的参数，
+*/
 {
+    // 从命令行中输入端口号；如果没有输入，默认端口号为12345
     int port;
     if (argc <= 1)
     {
@@ -158,35 +164,33 @@ int main(int argc, char *agrv[])
     }
     else
     {
-        port = atoi(agrv[1]);   // 将字符串转为整型数字
+        port = atoi(agrv[1]);   // 将输入的字符串转为整型数字
     }
 
-    pool<http_conn> m_threadpool(10, 10000);             // 创建线程池对象: 线程数量10，请求数量10000
-    vector<http_conn *> http_user_list(MAX_FD, nullptr); // 连接数量取决于描述符的数量,这个太奇怪了，析构什么的
-    int user_count = 0;                                  // 用户数为0
-
-    int listenfd = socket(PF_INET, SOCK_STREAM, 0);      // socket
+    // 创建服务端的监听socket，绑定地址和端口号，并允许重用本地地址和端口(结束连接后可以立即重启)
+    int listenfd = socket(PF_INET, SOCK_STREAM, 0);      
     struct sockaddr_in address;
     address.sin_addr.s_addr = htonl(INADDR_ANY);         // 将主机的无符号长整形数转换成网络字节顺序
     address.sin_family = AF_INET;                        // IPv4地址
     address.sin_port = htons(port);                      // 将一个无符号短整型数值转换为网络字节序
     
     int flag = 1;
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); 
     bind(listenfd, (struct sockaddr *)&address, sizeof(address));
 
     listen(listenfd, 5);
-    // cout << "listen, listenfd : " << listenfd << endl;
+    cout << "listen, listenfd : " << listenfd << endl;
 
-    // 创建内核事件表，用于注册所感兴趣的事件和回传所发生待处理的事件
+    pool<http_conn> m_threadpool(10, 10000);             // 创建线程池对象: 线程数量10，请求数量10000
+    vector<http_conn *> http_user_list(MAX_FD, nullptr); // 连接数量取决于描述符的数量,这个太奇怪了，析构什么的
+    int user_count = 0;                                  // 用户数为0
+
     epoll_event event_list[MAX_EVENT_NUMBER];
-    // 创建一个文件描述符，指定内核中的事件表, 成功返回一个文件描述符，失败返回 -1 并设置errno
-    int epollfd = epoll_create(5);      
-    addfd_lt(epollfd, listenfd);
+    int epollfd = epoll_create(5);                       // 创建一个文件描述符，指定内核中的事件表, 成功返回一个文件描述符，是其他所有epoll调用的句柄
+    addfd_lt(epollfd, listenfd);                         // 向内核事件表中添加监听socket
     http_conn::m_epollfd = epollfd;                      // 更新http_conn类中的epoll描述符
 
-    // 创建管道用于定时器和其他信号消息的通知
-    socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);         // 域协议
+    socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);         // 创建一对匿名的套接字，用于定时器和其他信号消息的通知
     setnonblocking(pipefd[1]);                           // 写入是非阻塞的？？？？为什么
     addfd(epollfd, pipefd[0]);                           // 监听前一个管道描述符
 
@@ -207,9 +211,9 @@ int main(int argc, char *agrv[])
         for (int i = 0; i < number; ++i)
         {
             int socketfd = event_list[i].data.fd;   // 读取就绪的socket fd
-            if (socketfd == listenfd) // 如果监听完毕后
+            if (socketfd == listenfd)               // 如果监听完毕后
             {
-                // cout << "new client" << endl;
+                cout << "new client" << endl;
                 // 新的连接
                 struct sockaddr_in client_addr;
                 socklen_t client_addr_length = sizeof(client_addr);
@@ -255,7 +259,6 @@ int main(int argc, char *agrv[])
                 EPOLLRDHUP：    表示对端断开连接;
                 出现上述几种情况时的处理措施：关闭连接，删除定时器
             */
-
             {
                 //printf("%s\n", strerror(errno));
                 http_user_list[socketfd]->close_conn("error!");
